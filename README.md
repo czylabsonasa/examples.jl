@@ -1,4 +1,4 @@
-# examples.jl
+## examples.jl
 
-## sinsum
+### (sinsum)[sinsum]
 * sum of sinusoids, CImgui
