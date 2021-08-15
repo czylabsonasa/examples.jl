@@ -5,4 +5,4 @@
 * sum of sinusoids, CImgui
 
 ### [lginteract](lginteract)
-* LightGraphs, GraphPlot, Interact
+* LightGraphs, GraphPlot, Interact (Jupyter)
