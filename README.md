@@ -6,3 +6,6 @@
 
 ### [lginteract](lginteract)
 * LightGraphs, GraphPlot, Interact (Jupyter)
+
+### [simplefun](simplefun)
+* Expr, Symbol, basic meta-programming
