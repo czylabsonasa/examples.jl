@@ -7,5 +7,10 @@
 ### [lginteract](lginteract)
 * LightGraphs, GraphPlot, Interact (Jupyter)
 
+
+### [traverse](traverse)
+* traverse an Expr tree
+
+
 ### [simplefun](simplefun)
-* Expr, Symbol, basic meta-programming
+* function from expression
