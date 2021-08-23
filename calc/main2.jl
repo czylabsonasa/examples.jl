@@ -1,17 +1,19 @@
 # GtkGrid
 # powering: ^
 # decimal: .
-# DEL: delete a character from the expression
 # font-size ok
-# next: error handling
-# wop
+# DEL: delete a character from the expression (does not not working properly)
+# error handling (needs to work with DEL)
+# 2^2000, is Int
+# rethink the parsing, text, and state
+# 
 
 
 using Gtk
 
 let
 
-  win = GtkWindow("Calculator", 400, 600)
+  win = GtkWindow("Calculator", 400, 500)
 
   dig = [
     "0","1","2","3","4","5","6","7","8","9"
@@ -21,26 +23,43 @@ let
     "+", "-", "*", "/", "^"
   ]
 
-  plan = [
+  btn_plan = [
     "1"   "2"   "3"    "+"   "C" ;
     "4"   "5"   "6"    "-"   "DEL"  ;
     "7"   "8"   "9"    "*"   ("=",(1,0))  ;
-    "."   "0"   "^"    "/"   "" 
+    "."   "0"   "^"    "/"   ""
   ]
 
 
-
-  @enum State s_empty s_dig s_op s_edig
-  state = s_empty
+  @enum State s_init s_dig s_op s_edig
+  state = s_init
   text = "0"
 
-  display = GtkLabel("")
-  set_gtk_property!(display, :xalign, 1)
-  set_gtk_property!(display, :hexpand, true)
-  set_gtk_property!(display, :label, text)
-  display_sc = Gtk.GAccessor.style_context(display)
-  nagy = GtkCssProvider(data="* {font-size: 3em;}")  
-  push!(display_sc, nagy, 600)
+  display = let
+    disp = GtkLabel("")
+    set_gtk_property!(disp, :xalign, 0.99)
+    set_gtk_property!(disp, :hexpand, true)
+    set_gtk_property!(disp, :label, text)
+    push!(
+      Gtk.GAccessor.style_context(disp),
+      GtkCssProvider(data="* {font-size: 3em;}"), 
+      600
+    )
+    disp
+  end
+
+  info = let
+    info = GtkLabel("")
+    set_gtk_property!(info, :xalign, 0.05)
+    set_gtk_property!(info, :expand, false)
+    set_gtk_property!(info, :label, "OK")
+    push!(
+      Gtk.GAccessor.style_context(info),
+      GtkCssProvider(data="* {font-size: 1em;}"), 
+      600
+    )
+    info
+  end
 
 
   # the main callback
@@ -78,7 +97,7 @@ let
 
   # the callbacks 
   function cb_dig(s)
-    (state==s_empty) && (text="")
+    (state==s_init) && (text="")
     state = s_dig
     text *= s
     set_gtk_property!(display, :label, text)
@@ -86,7 +105,7 @@ let
   function cb_op(s)
     (state == s_edig) && return
     if s in ["-","+"]
-      (state == s_empty) && (text="") 
+      (state == s_init) && (text="") 
     else
       (state != s_dig) && return
     end
@@ -104,13 +123,18 @@ let
   end
 
   function cb_equal()
-    (state in [s_empty, s_op]) && return
-    text = eval(Meta.parse(text*"*1.0")) |> string
-    state = s_dig
-    set_gtk_property!(display, :label, text)
+    (state == s_init) && return
+    try
+      text = eval(Meta.parse(text*"*1.0")) |> string
+      state = s_dig
+      set_gtk_property!(display, :label, text)
+      set_gtk_property!(info, :label, "OK")
+    catch
+      set_gtk_property!(info, :label, "EE")
+    end
   end
   function cb_clear()
-    state = s_empty
+    state = s_init
     text = "0"
     set_gtk_property!(display, :label, text)
   end
@@ -135,14 +159,14 @@ let
   end
 
 
-  nrow, ncol = size(plan)
+  nrow, ncol = size(btn_plan)
   btns = GtkGrid()
   # set_gtk_property!(btns, :expand, true)
   
   
   for i in 1:nrow
     for j in 1:ncol
-      pij = plan[i,j]
+      pij = btn_plan[i,j]
       if typeof(pij)==String 
         if length(pij)>0
           #b = GtkButton(s)
@@ -164,9 +188,11 @@ let
 
   vbox = GtkBox(:v)
   push!(vbox, GtkLabel(""))
+  push!(vbox, info)
+  push!(vbox, GtkLabel(""))
 
   dis = GtkBox(:h)
-  push!(dis,[GtkLabel(" "), GtkFrame(display), GtkLabel(" ")]...)
+  push!(dis,[GtkLabel("  "), GtkFrame(display), GtkLabel("  ")]...)
   
   push!(vbox, dis)
   push!(vbox, GtkLabel(""))
