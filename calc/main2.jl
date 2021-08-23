@@ -9,7 +9,7 @@ using Gtk
 
 let
 
-  win = GtkWindow("Calculator")
+  win = GtkWindow("Calculator", 400, 600)
 
   dig = [
     "0","1","2","3","4","5","6","7","8","9"
@@ -36,8 +36,10 @@ let
   set_gtk_property!(display, :xalign, 1)
   set_gtk_property!(display, :hexpand, true)
   set_gtk_property!(display, :label, text)
+  display_sc = Gtk.GAccessor.style_context(display)
+  nagy = GtkCssProvider(data="* {font-size: 3em;}")  
+  push!(display_sc, nagy, 600)
 
-  
 
   # the main callback
   function cb(s)
@@ -119,6 +121,18 @@ let
 
 
 
+  function mkbtn(s)
+    btn = GtkButton(s)
+    btn_sc = Gtk.GAccessor.style_context(btn)
+    nagy = GtkCssProvider(data="* {font-size: 2em;}")  
+    push!(btn_sc, nagy, 600)
+    set_gtk_property!(btn, :expand, true)
+    id = signal_connect(x->cb(s), btn, "clicked")
+
+    btn
+  end
+
+
   nrow, ncol = size(plan)
   btns = GtkGrid()
   # set_gtk_property!(btns, :expand, true)
@@ -129,21 +143,18 @@ let
       pij = plan[i,j]
       if typeof(pij)==String 
         if length(pij)>0
-          s = pij
-          b = GtkButton(s)
-          set_gtk_property!(b, :expand, true)
-
-          btns[j,i] = b
+          #b = GtkButton(s)
+          #set_gtk_property!(b, :expand, true)
+          btns[j,i] = mkbtn(pij)
         else
           continue
         end
       else
-        s = pij[1]
         di,dj = pij[2]
-        b = GtkButton(s)
-        btns[j:j+dj,i:i+di] = b
+        #btns[j:j+dj,i:i+di] = b
+        btns[j:j+dj,i:i+di] = mkbtn(pij[1])
+        
       end
-      id = signal_connect(x->cb(s), b, "clicked")
     end
   end
 
