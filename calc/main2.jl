@@ -1,7 +1,9 @@
 # GtkGrid
 # powering: ^
 # decimal: .
-# DEL: delete on character from the expression
+# DEL: delete a character from the expression
+# font-size ok
+# next: error handling
 # wop
 
 
