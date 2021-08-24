@@ -226,6 +226,6 @@ id13 = signal_connect(button_clicked_callback, b_multiply, "clicked")
 id14 = signal_connect(button_clicked_callback, b_divide, "clicked")
 id15 = signal_connect(button_clicked_callback, b_clear, "clicked")
 id16 = signal_connect(button_clicked_callback, b_equalto, "clicked")
-sig
+
 
 showall(win)
