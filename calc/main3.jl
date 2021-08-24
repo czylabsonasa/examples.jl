@@ -1,20 +1,20 @@
-# GtkGrid
-# powering: ^
-# decimal: .
-# font-size ok
-# DEL: delete a digit or op from the expression 
-# (does not not working properly)
+# DEL: delete a digit or op from the expression (does not not work properly)
+##### sol:
+##### workaround, it works now for digits and operators, but it wont work for functions
+##### (sin...)
 # error handling (needs to work with DEL)
-# 2^2000, is Int
+# 2^2000, is Int 
+##### sol:
+##### traverse the expression tree and change all non-symbol leafs to float64
 # rethink the parsing, text, and state
-#  
+##### later
 
 
 using Gtk
 
 let
 
-  win = GtkWindow("Calculator", 400, 500)
+  win = GtkWindow("Float64-Calculator", 400, 500)
 
   dig = [
     "0","1","2","3","4","5","6","7","8","9"
