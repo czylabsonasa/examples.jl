@@ -2,30 +2,35 @@
 ### trying to resolve the issues with main2.jl
 ###
 
-# done:
-# define set_gtk_properties! for multisetting props
-### ok
+# DONE:
+# define set_gtk_properties! for setting multiple props
 # cb_store instead of a (master)cb
-### ok
+# introduce add, del, Text
+# PARTIAL:
+# trav_and_mod + handling integer results
+
+# TODO:
+# !!! perhaps no need to plens and ilens !!!!
 
 
-
-### issues from main2:
-# DEL: delete a digit or op from the expression (does not not work properly)
-##### sol:
-##### workaround, it works now for digits and operators, but it wont work for functions
-##### (sin...)
-# error handling (needs to work with DEL)
-# 2^2000, is Int 
-##### sol:
-##### traverse the expression tree and change all non-symbol leafs to float64
-# rethink the parsing, text, and state
-##### sol(?):
-##### too much hassle with states, why not leave everything to julia?
+using 
+  Gtk, 
+  Printf
 
 
+rdigits = 4
 
-using Gtk
+function trav_and_mod(elem) 
+  !isa(elem, Expr) && return
+  args = elem.args
+  for i in 1:length(args)
+    tip = typeof(args[i])
+    (tip in [Float64,Symbol]) && continue
+    (tip == Int64) && (args[i]=Float64(args[i]); continue)
+    trav_and_mod(args[i])
+  end
+end
+
 
 function set_gtk_properties!(w, props)
   (0==length(props)) && return
@@ -53,120 +58,112 @@ let
   ]
 
 
-  
-  @enum State s_init s_dig s_op s_dot
-  state = s_init
-  text = "0"
+  mutable struct Text
+    pub::String
+    plens::Array{Int}
+    inner::String
+    ilens::Array{Int}
+  end
+
+  text = Text("",[],"",[])
+
+  function add(s::String)
+    (state != s_null) && (state = s_null; set_gtk_property!(info, :label, ""))
+    si = if s in op " "*s else s end
+    text.pub *= s
+    push!(text.plens, length(s))
+    text.inner *= si
+    push!(text.ilens, length(si))
+    set_gtk_property!(display, :label, text.pub)
+  end
+
+  function del(s::String)
+    (state != s_null) && (state = s_null; set_gtk_property!(info, :label, ""))
+    (text.pub == "") && return
+    text.pub = text.pub[1:end-text.plens[end]]
+    pop!(text.plens)
+    text.inner = text.inner[1:end-text.ilens[end]]
+    pop!(text.ilens)
+    set_gtk_property!(display, :label, text.pub)
+  end
+
+
 
   display = let
-    disp = GtkLabel("")
-    set_gtk_properties!(disp, [ 
+    tmp = GtkLabel("")
+    set_gtk_properties!(tmp, [ 
       :xalign =>  0.99,
       :hexpand => true,
-      :label => text 
+      :label => text.pub
     ])
 
     push!(
-      Gtk.GAccessor.style_context(disp),
+      Gtk.GAccessor.style_context(tmp),
       GtkCssProvider(data="* {font-size: 3em;}"), 
       600
     )
-    disp
+    tmp
   end
 
   info = let
-    info = GtkLabel("")
-    set_gtk_properties!(info, [
+    tmp = GtkLabel("")
+    set_gtk_properties!(tmp, [
       :xalign => 0.05,
       :expand => false,
-      :label => "OK"
+      :label => ""
     ])
     
     push!(
-      Gtk.GAccessor.style_context(info),
+      Gtk.GAccessor.style_context(tmp),
       GtkCssProvider(data="* {font-size: 1em;}"), 
       600
     )
-    info
+    tmp
   end
 
 
-  # the callbacks 
-  function cb_dig(s)
-    (state==s_init) && (text="")
-    state = s_dig
-    text *= s
-    set_gtk_property!(display, :label, text)
-  end
-  function cb_op(s)
-    #(state == s_edig) && return
-    if s in ["-","+"]
-      (state == s_init) && (text="") 
-    else
-      (state != s_dig) && return
-    end
-    state = s_op
-    s = " "*s
 
-    text *= s
-    set_gtk_property!(display, :label, text)
-  end
-  function cb_dot(s)
-    (state != s_dig) && return
-    state = s_dot
-    text *= "."
-    set_gtk_property!(display, :label, text)
-  end
+  @enum State s_null s_ee
+  state = s_null
 
+  
   function cb_equal(s)
-    (state == s_init) && return
+    ((state == s_ee) || (text.inner == "")) && return
+    
     try
-      text = eval(Meta.parse(text*"*1.0")) |> string
-      state = s_dig
-      set_gtk_property!(display, :label, text)
-      set_gtk_property!(info, :label, "OK")
+      tree = Meta.parse(text.inner)
+      trav_and_mod(tree)
+      res = eval(tree)*1.0 # *1.0 if we had a non-expression (constant)
+      println(stderr, res, " ", isinteger(res))
+      text.pub = if isinteger(res) 
+        @sprintf "%.0f" res
+      else
+        round(res, digits=rdigits) |> string
+      end
+      text.plens = [length(text.pub)]
+
+      set_gtk_property!(display, :label, text.pub)
+      text.inner = text.pub
+      text.ilens = [length(text.pub)]
     catch
       set_gtk_property!(info, :label, "EE")
+      state = s_ee
     end
   end
+
   function cb_clear(s)
-    state = s_init
-    text = "0"
-    set_gtk_property!(display, :label, text)
+    state = s_null
+    text = Text("",[],"",[])
+    set_gtk_property!(display, :label, "")
+    set_gtk_property!(info, :label, "")
   end
 
-  function cb_del(s)
-    ll = text[end]
-    if ll in op
-      text=text[1:end-2]
-    else
-      text=text[1:end-1]
-    end
-    if text==""
-      text = "0"
-      state = s_init
-    else
-      ll = text[end]
-      if ll in op
-        state = s_op
-      else
-        state = s_dig
-      end
-    end
-    set_gtk_property!(display, :label, text)
-  end
 
+  # the other keys callback is cb_add
   cb_store = Dict(
     "=" => cb_equal,
-    "." => cb_dot, 
-    "DEL" => cb_del,
+    "DEL" => del,
     "C" => cb_clear
-  )
-  merge!(cb_store,
-    Dict( v => cb_op for v in op)
-  )
-  merge!(cb_store,
-    Dict(v => cb_dig for v in dig)
   )
   
 
@@ -174,14 +171,16 @@ let
 
   # putting all together
   function mkbtn(s)
-    btn = GtkButton(s)
-    sc = Gtk.GAccessor.style_context(btn)
-    cssp = GtkCssProvider(data="* {font-size: 2em;}")  
-    push!(sc, cssp, 600)
-    set_gtk_property!(btn, :expand, true)
-    id = signal_connect(x->cb_store[s](s), btn, "clicked")
+    tmp = GtkButton(s)
+    push!(Gtk.GAccessor.style_context(tmp), 
+      GtkCssProvider(data="* {font-size: 2em;}"), 
+      600
+    )
+    set_gtk_property!(tmp, :expand, true)
+    cb = get(cb_store, s, add)
+    id = signal_connect(x->cb(s), tmp, "clicked")
 
-    btn
+    tmp
   end
 
   nrow, ncol = size(btn_plan)
@@ -202,6 +201,8 @@ let
       end
     end
   end
+
+
 
 
   vbox = GtkBox(:v)

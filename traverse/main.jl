@@ -4,10 +4,10 @@
 
 
 # ind: indent
-function trav(ex, ind = "") 
+function trav(elem, ind = "") 
   println("$(ind)$(elem) $(typeof(elem))")
-  if isa(ex, Expr)
-    for arg in ex.args
+  if isa(elem, Expr)
+    for arg in elem.args
       trav(arg,ind*"  ")
     end
   end
