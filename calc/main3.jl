@@ -6,12 +6,12 @@
 # define set_gtk_properties! for setting multiple props
 # cb_store instead of a (master)cb
 # introduce add, del, Text
-# PARTIAL:
 # trav_and_mod + handling integer results
+# rounding: only for displayed value
+
 
 # TODO:
 # !!! perhaps no need to plens and ilens !!!! (no, we do need)
-# rounding: only for displayed value
 
 
 using 
@@ -58,10 +58,10 @@ let
   ]
 
   btn_plan = [
-    "1"   "2"   "3"    "+"   "C" ;
-    "4"   "5"   "6"    "-"   "DEL"  ;
-    "7"   "8"   "9"    "*"   ("=",(1,0))  ;
-    "."   "0"   "^"    "/"   ""
+  ""  "1"   "2"   "3"    "+"   "C"          ""                     ;
+  ""           "4"   "5"   "6"    "-"   "DEL"         ""            ;
+  ("(",(1,0))   "7"   "8"   "9"    "*"   ("=",(1,0))   (")", (3,0))  ;
+  ""           "."   "0"   "^"    "/"   ""            ""  
   ]
 
 
