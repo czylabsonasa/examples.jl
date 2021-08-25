@@ -10,7 +10,8 @@
 # trav_and_mod + handling integer results
 
 # TODO:
-# !!! perhaps no need to plens and ilens !!!!
+# !!! perhaps no need to plens and ilens !!!! (no, we do need)
+# rounding: only for displayed value
 
 
 using 
@@ -18,7 +19,13 @@ using
   Printf
 
 
-rdigits = 4
+mutable struct Conf
+  rdigits::Int
+  tip::DataType
+  intdisplim::Int
+end
+conf = Conf(5,Float64,20)
+
 
 function trav_and_mod(elem) 
   !isa(elem, Expr) && return
@@ -135,16 +142,17 @@ let
       trav_and_mod(tree)
       res = eval(tree)*1.0 # *1.0 if we had a non-expression (constant)
       println(stderr, res, " ", isinteger(res))
-      text.pub = if isinteger(res) 
-        @sprintf "%.0f" res
+      resint = @sprintf "%.0f" res
+      text.pub = if isinteger(res) && length(resint)≤conf.intdisplim
+        resint
       else
-        round(res, digits=rdigits) |> string
+        round(res, digits=conf.rdigits) |> string
       end
       text.plens = [length(text.pub)]
 
       set_gtk_property!(display, :label, text.pub)
-      text.inner = text.pub
-      text.ilens = [length(text.pub)]
+      text.inner = res |> string
+      text.ilens = [length(text.inner)]
     catch
       set_gtk_property!(info, :label, "EE")
       state = s_ee
@@ -224,8 +232,8 @@ let
   )
 
 
-  win = GtkWindow("Float64-Calculator", 400, 500)
+  win = GtkWindow("Float-Calculator", 400, 500)
   push!(win, vbox)
-  showall(win)
+  @async showall(win)
 
 end

@@ -9,8 +9,14 @@
 
 
 ### [traverse](traverse)
-* traverse an Expr tree
-
+* traverse an Expr/DataType tree
 
 ### [simplefun](simplefun)
 * function from expression
+
+
+### [calc](calc)
+* simple calculator, Gtk.jl
+
+### [pluto](pluto)
+* first try with Pluto.jl
