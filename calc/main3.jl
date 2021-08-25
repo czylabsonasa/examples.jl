@@ -20,9 +20,9 @@ using
 
 
 mutable struct Conf
-  rdigits::Int
+  sigdigits::Int
   tip::DataType
-  intdisplim::Int
+  displim::Int
 end
 conf = Conf(5,Float64,20)
 
@@ -60,7 +60,7 @@ let
   btn_plan = [
   ""  "1"   "2"   "3"    "+"   "C"          ""                     ;
   ""           "4"   "5"   "6"    "-"   "DEL"         ""            ;
-  ("(",(1,0))   "7"   "8"   "9"    "*"   ("=",(1,0))   (")", (3,0))  ;
+  ("(",(1,0))   "7"   "8"   "9"    "*"   ("=",(1,0))   (")", (1,0))  ;
   ""           "."   "0"   "^"    "/"   ""            ""  
   ]
 
@@ -143,10 +143,10 @@ let
       res = eval(tree)*1.0 # *1.0 if we had a non-expression (constant)
       println(stderr, res, " ", isinteger(res))
       resint = @sprintf "%.0f" res
-      text.pub = if isinteger(res) && length(resint)≤conf.intdisplim
+      text.pub = if isinteger(res) && length(resint)≤conf.displim
         resint
       else
-        round(res, digits=conf.rdigits) |> string
+        round(res, sigdigits=conf.sigdigits) |> string
       end
       text.plens = [length(text.pub)]
 
