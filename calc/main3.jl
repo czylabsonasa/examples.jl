@@ -13,19 +13,20 @@
 
 # TODO:
 # !!! perhaps no need to plens and ilens !!!! (no, we do need)
-
+# some common functions
 
 using 
   Gtk, 
   Printf
 
 
-mutable struct Conf
+mutable struct Options
   sigdigits::Int
   tip::DataType
   displim::Int
+  trigfun::String
 end
-conf = Conf(5,Float64,20)
+opts = Options(5,Float64,20,"rad")
 
 
 # function trav_and_mod(elem)
@@ -70,17 +71,31 @@ let
     "+", "-", "*", "/", "^"
   ]
 
+
+  trigfun = [
+    "sin", "cos", "tan", "cot",
+    "asin", "acos", "atan", "acot"
+  ]
+
+  genfun = [
+    "exp", 
+    "log", "log2", "log10"
+  ]
+  
+
   btn_plan = [
-    "("  "1"   "2"   "3"    "+"   "C"     ")"       ;
-    ""   "4"   "5"   "6"    "-"   "DEL"    ""       ;
-    ""   "7"   "8"   "9"    "*"     "="     ""       ;
-    ""   "."   "0"   "^"    "/"     ""     ""  
+    "("     "1"     "2"       "3"     "+"     "C"       ")"       ;
+    ""      "4"     "5"       "6"     "-"     "DEL"     ""        ;
+    ""      "7"     "8"       "9"     "*"     "="       ""        ;
+    ""      "."     "0"       "^"     "/"     ""        ""        ;
+    "sin"   "cos"   "tan"     "cot"   "exp"   ""        ""        ;
+    "asin"  "acos"  "atan"    "acot"  "log"   "log2"    "log10"
   ]
   
   btn_size=Dict(
-    "(" => (1,0),
+#    "(" => (0,0),
     "=" => (1,0),
-    ")" => (1,0)
+#    ")" => (0,0)
   )
 
 
@@ -95,9 +110,22 @@ let
 
   function add(s::String)
     (state != s_null) && (state = s_null; set_gtk_property!(info, :label, ""))
-    si = if s in op " "*s else s end
-    text.pub *= s
-    push!(text.plens, length(s))
+    sp, si = if s in op 
+        s, " "*s 
+    elseif s in trigfun
+      if opts.trigfun == "deg"
+        s*"(", s*"d("
+      else
+        s*"(", s*"("
+      end
+    elseif s in genfun
+      s*"(", s*"("
+    else
+      s, s
+    end
+    
+    text.pub *= sp
+    push!(text.plens, length(sp))
     text.inner *= si
     push!(text.ilens, length(si))
     set_gtk_property!(display, :label, text.pub)
@@ -162,16 +190,15 @@ let
       res = eval(tree)*1.0 # *1.0 if we had a non-expression (constant)
       println(stderr, res, " ", isinteger(res))
       resint = @sprintf "%.0f" res
-      text.pub = if isinteger(res) && length(resint)≤conf.displim
-        resint
+      text.pub, text.inner = if isinteger(res) && length(resint)≤opts.displim
+        resint, resint
       else
-        round(res, sigdigits=conf.sigdigits) |> string
+        round(res, sigdigits=opts.sigdigits) |> string, res |> string
       end
       text.plens = [length(text.pub)]
+      text.ilens = [length(text.inner)]
 
       set_gtk_property!(display, :label, text.pub)
-      text.inner = res |> string
-      text.ilens = [length(text.inner)]
     catch
       set_gtk_property!(info, :label, "EE")
       state = s_ee
