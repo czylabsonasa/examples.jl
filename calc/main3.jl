@@ -8,6 +8,7 @@
 # introduce add, del, Text
 # trav_and_mod + handling integer results
 # rounding: only for displayed value
+### a bit messy: integer vs. decimal form (digits) vs. exponential form (sigdigits)
 
 
 # TODO:
@@ -27,16 +28,28 @@ end
 conf = Conf(5,Float64,20)
 
 
-function trav_and_mod(elem) 
+# function trav_and_mod(elem)
+  # !isa(elem, Expr) && return
+  # args = elem.args
+  # for i in 1:length(args)
+    # tip = typeof(args[i])
+    # (tip in [Float64,Symbol]) && continue
+    # (tip == Int64) && (args[i]=Float64(args[i]); continue)
+    # trav_and_mod(args[i])
+  # end
+# end
+
+
+# 
+function trav_and_mod(elem)
   !isa(elem, Expr) && return
   args = elem.args
   for i in 1:length(args)
-    tip = typeof(args[i])
-    (tip in [Float64,Symbol]) && continue
-    (tip == Int64) && (args[i]=Float64(args[i]); continue)
+    (typeof(args[i]) == Int64) && (args[i]=Float64(args[i]); continue)
     trav_and_mod(args[i])
   end
 end
+
 
 
 function set_gtk_properties!(w, props)
@@ -58,11 +71,17 @@ let
   ]
 
   btn_plan = [
-  ""  "1"   "2"   "3"    "+"   "C"          ""                     ;
-  ""           "4"   "5"   "6"    "-"   "DEL"         ""            ;
-  ("(",(1,0))   "7"   "8"   "9"    "*"   ("=",(1,0))   (")", (1,0))  ;
-  ""           "."   "0"   "^"    "/"   ""            ""  
+    "("  "1"   "2"   "3"    "+"   "C"     ")"       ;
+    ""   "4"   "5"   "6"    "-"   "DEL"    ""       ;
+    ""   "7"   "8"   "9"    "*"     "="     ""       ;
+    ""   "."   "0"   "^"    "/"     ""     ""  
   ]
+  
+  btn_size=Dict(
+    "(" => (1,0),
+    "=" => (1,0),
+    ")" => (1,0)
+  )
 
 
   mutable struct Text
@@ -197,16 +216,9 @@ let
   for i in 1:nrow
     for j in 1:ncol
       pij = btn_plan[i,j]
-      if typeof(pij)==String 
-        if length(pij)>0
-          btn_real[j,i] = mkbtn(pij)
-        else
-          continue
-        end
-      else
-        di,dj = pij[2]
-        btn_real[j:j+dj,i:i+di] = mkbtn(pij[1])
-      end
+      (0==length(pij)) && continue
+      di,dj = get(btn_size, pij, (0,0))
+      btn_real[j:j+dj,i:i+di] = mkbtn(pij)
     end
   end
 
