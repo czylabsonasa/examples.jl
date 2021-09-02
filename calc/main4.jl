@@ -1,23 +1,4 @@
-###
-### trying to resolve the issues with main2.jl
-###
-
-# DONE:
-# define set_gtk_properties! for setting multiple props
-# cb_store instead of a (master)cb
-# introduce add, del, Text
-# trav_and_mod + handling integer results
-# rounding: only for displayed value NO !!!
-### a bit messy: integer vs. decimal form (digits) vs. exponential form (sigdigits)
-### ### the same rounding applied for public and inner !!!
-# some common functions (trig, exp)
-# Options -> 
-#  used Float types
-#  digits displayed (and stored)
-#  rad or deg for trigfuns
-
-# TODO:
-# !!! perhaps no need to plens and ilens !!!! (no, we do need)
+# todo: modularize
 
 using 
   Gtk, 
@@ -33,19 +14,6 @@ end
 opts = Options(5,Float64,20,"rad")
 
 
-# function trav_and_mod(elem)
-  # !isa(elem, Expr) && return
-  # args = elem.args
-  # for i in 1:length(args)
-    # tip = typeof(args[i])
-    # (tip in [Float64,Symbol]) && continue
-    # (tip == Int64) && (args[i]=Float64(args[i]); continue)
-    # trav_and_mod(args[i])
-  # end
-# end
-
-
-# 
 function trav_and_mod(elem)
   !isa(elem, Expr) && return
   args = elem.args
@@ -254,7 +222,8 @@ let
   end
 
 
-  # info part
+
+
   vbox = GtkBox(:v)
   push!(vbox, 
     GtkLabel(""), 
@@ -262,15 +231,11 @@ let
     GtkLabel("")
   )
 
-
-  # display
   disbox = GtkBox(:h)
   push!(disbox, 
     GtkLabel("  "), GtkFrame(display), GtkLabel("  ") 
   )
-
-
-  # buttons
+  
   push!(vbox, 
     disbox, 
     GtkLabel(""),
@@ -281,17 +246,6 @@ let
   main_win = GtkWindow("Float-Calculator", 400, 500)
 
   push!(main_win, vbox)
+  @async showall(main_win)
 
-
-  # from the documentation
-  if isinteractive()
-    showall(main_win)
-  else
-    c = Condition()
-    signal_connect(main_win, :destroy) do _
-      notify(c)
-    end
-    @async showall(main_win)
-    wait(c)
-  end
 end
