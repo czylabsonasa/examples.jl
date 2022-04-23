@@ -1,0 +1,8 @@
+# simple lp data file
+# only the coefficients are represented
+
+sense:  max
+obj:    8 12
+con:    10 20 < 140
+con:    6  8  < 72
+

@@ -1,0 +1,14 @@
+read:C100_D100.txt:0.122s
+bruteforce:C100_D100.txt:41:0.251s
+read:C100_D200.txt:0.001s
+bruteforce:C100_D200.txt:76:0.481s
+read:C200_D100.txt:0.001s
+bruteforce:C200_D100.txt:51:4.179s
+read:C200_D200.txt:0.002s
+bruteforce:C200_D200.txt:88:7.07s
+read:C400_D400.txt:0.127s
+bruteforce:C400_D400.txt:158:87.97s
+read:C500_D500.txt:0.14s
+bruteforce:C500_D500.txt:195:221.494s
+read:C600_D600.txt:0.126s
+bruteforce:C600_D600.txt:231:556.444s

@@ -1,0 +1,13 @@
+read:C100_D100.txt:0.107s
+frek+qbruteforce+restart:C100_D100.txt:41,NA:0.206s
+read:C100_D200.txt:0.002s
+frek+qbruteforce+restart:C100_D200.txt:76,NA:0.101s
+read:C200_D100.txt:0.001s
+frek+qbruteforce+restart:C200_D100.txt:51,NA:0.049s
+read:C200_D200.txt:0.002s
+frek+qbruteforce+restart:C200_D200.txt:88,NA:0.152s
+read:C400_D400.txt:0.12s
+read:C400_D400.txt:0.127s
+frek+qbruteforce+restart:C400_D400.txt:158,NA:5.587s
+read:C400_D400.txt:0.12s
+frek+qbruteforce+restart:C400_D400.txt:158,NA:5.567s

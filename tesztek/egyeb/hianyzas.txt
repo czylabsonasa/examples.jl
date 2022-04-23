@@ -1,0 +1,11 @@
+naplo="""
+# 01 15
+Galagonya Alfonz OXXXXXN
+# 01 16
+Alma Hedvig OOOOOIO
+Galagonya Alfonz XXXXXXX
+"""
+
+for l in split(naplo,"\n")
+  println(l)
+end
