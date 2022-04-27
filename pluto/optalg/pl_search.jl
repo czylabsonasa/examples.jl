@@ -20,43 +20,151 @@ begin
 	using LinearAlgebra, ForwardDiff
 	import Contour: contours, levels, level, lines, coordinates
 	using PlutoUI
+	md"""### >>> Load packages"""
 end
 
-# ╔═╡ 4b27e0b6-65a4-43ec-bf36-ec36b4c0682c
-md"""DOM: $(@bind DOM Slider(1:20))"""
+# ╔═╡ 7b8f7bd7-6da2-4c15-80b8-2bda5edf0b1a
+begin
+  mround(x)=round(x,digits=3)
 
-# ╔═╡ 328736c8-5761-4939-8267-a37bbc6416c0
-md"""npts:   $(@bind npts Slider(100:100:1000,show_value=true))"""
+  struct problem
+    f::Function
+	xdom::Tuple{Int,Int}
+	ydom::Tuple{Int,Int}
+	name::String
+  end
 
+  Base.show(io::IO,prb::problem)=print(io,prb.name)
 
-# ╔═╡ 98e21935-9695-446c-8ab6-0ad2e7852f58
-t=range(-DOM, DOM, length=npts);
+  function mkutil(prb::problem)
+  	a,b=prb.xdom
+	c,d=prb.ydom
+	U()=((b-a)*rand()+a,(d-c)*rand()+c)
+	isdom(x)=a≤x[1]≤b && c≤x[2]≤d
+	U,isdom
+  end
 
-# ╔═╡ 4d9002b8-df37-438c-8c3e-073f9428faba
-let
-	setA=@bind A Slider(-30:30,default=0,show_value=true)
-	setB=@bind B Slider(-30:30,default=0,show_value=true)
-	md"""
-	A = $(setA)
+  function tup2vec(xy)
+	x,y=[],[]
+	for xy in xy
+		push!(x,xy[1])
+		push!(y,xy[2])
+	end
+	x,y
+  end
 	
-	B = $(setB)
-	"""
+  md"""### >>> Auxilliary functions, types"""
+end
+
+# ╔═╡ fd23790c-dffe-428d-b8bd-34097b71167a
+begin
+	function vak(params)
+		prb=params.prb
+		N=params.N
+		x=params.x
+		
+		f(x)=prb.f(x[1],x[2])
+		U,_=mkutil(prb)
+		fx=f(x)
+		loc=[x]
+		val=[fx]
+		for k=1:N
+			y=U()
+			fy=f(y)
+			(fy<fx)&&(x=y;fx=fy;push!(loc,x);push!(val,fx))
+		end
+		loc,val,N
+	end
+
+	function hillclimbing(params)
+		prb=params.prb
+		N=params.N
+		x=params.x
+		δ=params.δ
+
+		f(x)=prb.f(x[1],x[2])
+		U,isdom=mkutil(prb)
+		fx=f(x)
+		loc=[x]
+		val=[fx]
+		lepes()=(δ*2rand()-1,δ*2rand()-1)
+		step=0
+		k=1
+		while k≤N
+			step+=1
+			y=x .+ lepes()
+			(false==isdom(y))&&continue
+			fy=f(y)
+			(fy<fx)&&(x=y;fx=fy;push!(loc,x);push!(val,fx);k+=1)
+		end
+		loc,val,step
+	end
+
+	
+	methodlista=[
+		vak,
+		hillclimbing,
+	]
+	
+	md"""### >>> Define the methods"""
 end
 
 # ╔═╡ 7eabcc9b-9620-4452-917d-e9e2c6e7d636
 begin
-	#fun(x,y) = x^3 + y^3 -A*x - B*y - A^2*cos(x) - B*sin(y)
-	fun(x,y) = x^4 + y^4 -A*x^2 - B*y^2
-	fun(v)=fun(v...)
+	prblista=[
+		problem(
+		    (x,y)->(x^2 + (y/2)^2),
+			(-4,4),
+			(-4,4),
+			"x^2 + (y/2)^2",
+		),
+		problem(
+		    (x,y)->x^4 + y^4 -13x^2 - 13y^2,
+			(-4,4),
+			(-4,4),
+			"x^4 + y^4 -13x^2 - 13y^2",
+		),
+	]
+	md"""### >>> Define the problems"""
 end
+
+# ╔═╡ 786e0278-9e19-4060-8b66-2e1e676b44ac
+md"""
+* prb $(@bind prb Select(prblista))
+* N $(@bind N Slider(10:10:1000,show_value=true))
+* δ $(@bind δ Slider(0.01:0.05:2,show_value=true))
+* method $(@bind method Select(methodlista))
+"""
+
+# ╔═╡ 1b5e7e64-f158-424e-8e06-107a56cd1cc2
+md"""
+$(@bind run Button("run"))
+"""
 
 # ╔═╡ 491dc4ed-6e61-40e6-a839-7f72baefef7a
 begin
-	xx=t
-	yy=t
-	zz=[fun(x,y) for x in xx, y in yy]
-	contour(xx,yy,zz,zlim=(0,15),title="A=$(A), B=$(B)")
+	run
+    xx=range(prb.xdom[1],prb.xdom[2],length=100)
+	yy=range(prb.ydom[1],prb.ydom[2],length=100)
+
+	f(x)=prb.f(x[1],x[2])
+	zz=[f((x,y)) for x in xx, y in yy]
+	U,_=mkutil(prb)
+	
+	params=(prb=prb,x=U(),N=N,δ=δ)
+	
+	loc,val,step=method(params)
+	locx,locy=tup2vec(loc)
+	ar=round(100*length(locx)/step,digits=1)
+
+	tit="$(string(prb)), N($(N)), AR($(ar)%)"
+	contour(xx,yy,zz,title=tit)
+	plot!(locx,locy,label="",markersize=1.5,color=:black)
 end
+
+
+# ╔═╡ 3b406b28-0622-4276-88a5-143369c1f99d
+
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1010,12 +1118,13 @@ version = "0.9.1+5"
 """
 
 # ╔═╡ Cell order:
-# ╠═235b7b72-be37-11ec-12ad-61ef34461d2a
-# ╠═7eabcc9b-9620-4452-917d-e9e2c6e7d636
-# ╟─4b27e0b6-65a4-43ec-bf36-ec36b4c0682c
-# ╟─98e21935-9695-446c-8ab6-0ad2e7852f58
-# ╟─328736c8-5761-4939-8267-a37bbc6416c0
+# ╟─235b7b72-be37-11ec-12ad-61ef34461d2a
+# ╟─7b8f7bd7-6da2-4c15-80b8-2bda5edf0b1a
+# ╠═fd23790c-dffe-428d-b8bd-34097b71167a
+# ╟─7eabcc9b-9620-4452-917d-e9e2c6e7d636
+# ╠═786e0278-9e19-4060-8b66-2e1e676b44ac
+# ╟─1b5e7e64-f158-424e-8e06-107a56cd1cc2
 # ╠═491dc4ed-6e61-40e6-a839-7f72baefef7a
-# ╟─4d9002b8-df37-438c-8c3e-073f9428faba
+# ╠═3b406b28-0622-4276-88a5-143369c1f99d
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
