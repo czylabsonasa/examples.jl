@@ -17,41 +17,37 @@ end
 # ╔═╡ 235b7b72-be37-11ec-12ad-61ef34461d2a
 begin
 	using Plots
-	#using Gaston
 	using LinearAlgebra, ForwardDiff
 	import Contour: contours, levels, level, lines, coordinates
 	using PlutoUI
-
-html"""
-<style>
-  svg {
-    width: 220%;
-  }
-</style>
-"""
-
-# html"""
-# <style>
-#   main {
-#     min-width: 1000px;
-#   }
-# </style>
-# """	
 	md"""###  <Load packages>"""
 end
 
 # ╔═╡ ff9e1333-50af-41e0-bddf-5345a9ab0f8e
-md"""## >>> continous 2d-search <<<"""
-
-# ╔═╡ 137a6867-baae-4a83-8987-379918679be0
-# ╠═╡ disabled = true
-#=╠═╡
-#import Pkg; Pkg.add("Gaston")
-  ╠═╡ =#
+md"""## >>> 2d-search <<<"""
 
 # ╔═╡ 7b8f7bd7-6da2-4c15-80b8-2bda5edf0b1a
 begin
-  mr(x)=round(x,digits=3)
+  mround(x)=round(x,digits=3)
+
+  struct problem
+    obj::Function
+	xdom::Tuple{Int,Int}
+	ydom::Tuple{Int,Int}
+	unidom::Function
+	indom::Function
+	name::String
+  end
+
+  Base.show(io::IO,prb::problem)=print(io,prb.name)
+
+  function mkutil(prb::problem)
+  	a,b=prb.xdom
+	c,d=prb.ydom
+	U()=((b-a)*rand()+a,(d-c)*rand()+c)
+	isdom(x)=a≤x[1]≤b && c≤x[2]≤d
+	U,isdom
+  end
 
   function tup2vec(xy)
 	x=[v[1] for v in xy]
@@ -59,180 +55,114 @@ begin
 	x,y
   end
 	
-  md"""### <Auxilliary functions>"""
+  md"""### <Auxilliary functions, types>"""
+end
+
+# ╔═╡ fd23790c-dffe-428d-b8bd-34097b71167a
+begin
+	function blind(params)
+		prb=params.prb
+		N=params.N
+		x=params.x
+		
+		f(x)=prb.f(x[1],x[2])
+		U,_=mkutil(prb)
+		fx=f(x)
+		loc=[x]
+		val=[fx]
+		
+		for k=1:N
+			y=U()
+			fy=f(y)
+			(fy<fx)&&(x=y;fx=fy;push!(loc,x);push!(val,fx))
+		end
+		loc,val,N
+	end
+
+	function hillclimbing(params)
+		prb=params.prb
+		N=params.N
+		x=params.x
+		δ=params.δ
+
+		f(x)=prb.f(x[1],x[2])
+		U,isdom=mkutil(prb)
+		fx=f(x)
+		loc=[x]
+		val=[fx]
+		lepes()=(δ*2rand()-1,δ*2rand()-1)
+		step=0
+		k=1
+		while k≤N && step<10^5
+			step+=1
+			y=x .+ lepes()
+			(false==isdom(y))&&continue
+			fy=f(y)
+			(fy<fx)&&(x=y;fx=fy;push!(loc,x);push!(val,fx);k+=1)
+		end
+		loc,val,step
+	end
+
+	
+	methodlista=[
+		blind,
+		hillclimbing,
+	]
+	
+	md"""### <Define the methods>"""
 end
 
 # ╔═╡ 7eabcc9b-9620-4452-917d-e9e2c6e7d636
 begin
-	prob1=Dict(
-		"f"=>(x,y)->(x^2 + (y/2)^2),
-		"xdom"=>(-4,4),
-		"ydom"=>(-4,4),
-		"indom"=>(x)->(-4≤x[1]≤4 && -4≤x[2]≤4),
-		"unidom"=>()->8*rand(2).-4,
-		"string"=>"x^2 + (y/2)^2",
-	)
-	prob2=Dict(
-		"f"=>(x,y)->x^4 + y^4 -13x^2 - 13y^2,
-		"xdom"=>(-4,4),
-		"ydom"=>(-4,4),
-		"indom"=>(x)->(-4≤x[1]≤4 && -4≤x[2]≤4),
-		"unidom"=>()->8*rand(2).-4,
-		"string"=>raw"x^4 + y^4 -13x^2 - 13y^2",
-	)
-	
-	problemlist=[
-		prob1,
-		prob2,
+	prblista=[
+		problem(
+		    (x,y)->(x^2 + (y/2)^2),
+			(-4,4),
+			(-4,4),
+			"x^2 + (y/2)^2",
+		),
+		problem(
+		    (x,y)->x^4 + y^4 -13x^2 - 13y^2,
+			(-4,4),
+			(-4,4),
+			"x^4 + y^4 -13x^2 - 13y^2",
+		),
 	]
-	Base.show(io::IO,prb::Dict)=print(io,prb["string"])
-
-	md"""### <testfunctions>"""
-end
-
-# ╔═╡ 43128ca4-0d92-43e0-8f65-4911aa127aed
-begin
-	function blind(config)
-		problem=config.problem
-		INC=config.INC
-		EV=config.EV
-		x=config.x0
-		
-		f(x)=problem["f"](x[1],x[2])
-		unidom=problem["unidom"]
-		fx=f(x)
-		loc=[x]
-		val=[fx]
-
-		inc=0
-		ev=0
-		while inc≤INC && ev≤EV
-			y=unidom()
-			fy=f(y); ev+=1
-			if fy<fx
-				x=y; fx=fy
-				push!(loc,x); push!(val,fx)
-				inc+=1
-			end
-		end
-		loc,val,inc,ev
-	end
-	md"""### <blind-search>"""
+	md"""### >>> Define the problems"""
 end
 
 # ╔═╡ 786e0278-9e19-4060-8b66-2e1e676b44ac
-@bind blindconfig confirm(
-PlutoUI.combine() do bind
 md"""
-* problem $(bind(Select(problemlist)))
-* INCsteps $(bind(Slider(10:10:1000,show_value=true)))
-* funEVals $(bind(Slider(1000:1000:100000,show_value=true)))
+* prb $(@bind prb Select(prblista))
+* N $(@bind N Slider(10:10:1000,show_value=true))
+* δ $(@bind δ Slider(0.01:0.05:2,show_value=true))
+* method $(@bind method Select(methodlista))
 """
-end
-)
+
+# ╔═╡ 1b5e7e64-f158-424e-8e06-107a56cd1cc2
+md"""
+$(@bind run Button("run"))
+"""
 
 # ╔═╡ 491dc4ed-6e61-40e6-a839-7f72baefef7a
 begin
-	problem,INC,EV=blindconfig
-	xx=range(problem["xdom"][1],problem["xdom"][2],length=100)
-	yy=range(problem["ydom"][1],problem["ydom"][2],length=100)
+	run
+    xx=range(prb.xdom[1],prb.xdom[2],length=100)
+	yy=range(prb.ydom[1],prb.ydom[2],length=100)
 
-	f(x)=problem["f"](x[1],x[2])
-	f(x,y)=f((x,y))
-	zz=[f(x,y) for x in xx, y in yy]
-
-	config=(
-		problem=problem,
-		x0=problem["unidom"](),
-		INC=INC,EV=EV,
-		neigh=x->x .+ randn(2),
-	)
+	f(x)=prb.f(x[1],x[2])
+	zz=[f((x,y)) for x in xx, y in yy]
+	U,_=mkutil(prb)
 	
-	loc,val,inc,ev=blind(config)
+	params=(prb=prb,x=U(),N=N,δ=δ)
+	
+	loc,val,step=method(params)
 	locx,locy=tup2vec(loc)
+	ar=round(100*length(locx)/step,digits=1)
 
-	title1="\$"*problem["string"]*"\$"
-	p1=contour(xx,yy,zz,title=title1)
-	plot!(locx,locy,label="",markersize=10,color=:black)
-	
-	title2="$(inc)/$(ev)=$(mr(inc/ev))->$(mr(val[end]))"
-	p2=plot(1:length(val),val,legend=false,title=title2)
-	plot(p1,p2,layout=grid(2,1,heights=[0.7,0.3]))
-end
-
-
-# ╔═╡ ade0385b-b237-47d5-86c1-d4653b537a36
-begin
-	function hillclimbing(config)
-		problem=config.problem
-		INC=config.INC
-		EV=config.EV
-		x=config.x0
-		neigh=config.neigh
-		
-		f(x)=problem["f"](x[1],x[2])
-		indom=problem["indom"]
-
-		fx=f(x)
-		loc=[x]
-		val=[fx]
-
-		inc=0
-		ev=0
-		while inc≤INC && ev≤EV
-			y=neigh(x)
-			(false==indom(y))&&continue
-			ev+=1
-			fy=f(y)
-			if fy<fx
-				x=y; fx=fy
-				push!(loc,x); push!(val,fx)
-				inc+=1
-			end
-		end
-		loc,val,inc,ev
-	end
-
-	md"""### <hill-climbing>"""
-end
-
-# ╔═╡ 10f8facf-fe69-4892-8428-1a6e2d61c2ce
-@bind hillconfig confirm(
-PlutoUI.combine() do bind
-md"""
-* problem $(bind(Select(problemlist)))
-* INCsteps $(bind(Slider(10:10:1000,show_value=true)))
-* funEVals $(bind(Slider(1000:1000:100000,show_value=true)))
-"""
-end
-)
-
-# ╔═╡ 526681fb-3e44-40d7-994d-53061be6939f
-let
-	problem,INC,EV=hillconfig
-	xx=range(problem["xdom"][1],problem["xdom"][2],length=100)
-	yy=range(problem["ydom"][1],problem["ydom"][2],length=100)
-
-	f(x)=problem["f"](x[1],x[2])
-	f(x,y)=f((x,y))
-	zz=[f(x,y) for x in xx, y in yy]
-
-	config=(
-		problem=problem,
-		x0=problem["unidom"](),
-		INC=INC,EV=EV,
-		neigh=x->x .+ randn(2),
-	)
-	
-	loc,val,inc,ev=hillclimbing(config)
-	locx,locy=tup2vec(loc)
-	title1="\$"*problem["string"]*"\$"
-	p1=contour(xx,yy,zz,title=title1)
-	plot!(locx,locy,label="",markersize=10,color=:black)
-	
-	title2="$(inc)/$(ev)=$(mr(inc/ev))->$(mr(val[end]))"
-	p2=plot(1:length(val),val,legend=false,title=title2)
-	plot(p1,p2,layout=grid(2,1,heights=[0.7,0.3]))
+	tit="$(string(prb)), N($(N)), AR($(ar)%)"
+	contour(xx,yy,zz,title=tit)
+	plot!(locx,locy,label="",markersize=1.5,color=:black)
 end
 
 
@@ -247,8 +177,8 @@ PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 
 [compat]
 Contour = "~0.5.7"
-ForwardDiff = "~0.10.27"
-Plots = "~1.27.6"
+ForwardDiff = "~0.10.25"
+Plots = "~1.27.5"
 PlutoUI = "~0.7.38"
 """
 
@@ -342,9 +272,9 @@ uuid = "d38c429a-6771-53c6-b99e-75d170b6e991"
 version = "0.5.7"
 
 [[DataAPI]]
-git-tree-sha1 = "fb5f5316dd3fd4c5e7c30a24d50643b73e37cd40"
+git-tree-sha1 = "cc70b17275652eb47bc9e5f81635981f13cea5c8"
 uuid = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"
-version = "1.10.0"
+version = "1.9.0"
 
 [[DataStructures]]
 deps = ["Compat", "InteractiveUtils", "OrderedCollections"]
@@ -435,9 +365,9 @@ version = "0.4.2"
 
 [[ForwardDiff]]
 deps = ["CommonSubexpressions", "DiffResults", "DiffRules", "LinearAlgebra", "LogExpFunctions", "NaNMath", "Preferences", "Printf", "Random", "SpecialFunctions", "StaticArrays"]
-git-tree-sha1 = "34e6147e7686a101c245f12dba43b743c7afda96"
+git-tree-sha1 = "1bd6fc0c344fc0cbee1f42f8d2e7ec8253dda2d2"
 uuid = "f6369f11-7733-5829-9624-2563aa707210"
-version = "0.10.27"
+version = "0.10.25"
 
 [[FreeType2_jll]]
 deps = ["Artifacts", "Bzip2_jll", "JLLWrappers", "Libdl", "Pkg", "Zlib_jll"]
@@ -677,9 +607,9 @@ uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 
 [[LogExpFunctions]]
 deps = ["ChainRulesCore", "ChangesOfVariables", "DocStringExtensions", "InverseFunctions", "IrrationalConstants", "LinearAlgebra"]
-git-tree-sha1 = "44a7b7bb7dd1afe12bac119df6a7e540fa2c96bc"
+git-tree-sha1 = "a970d55c2ad8084ca317a4658ba6ce99b7523571"
 uuid = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
-version = "0.3.13"
+version = "0.3.12"
 
 [[Logging]]
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
@@ -722,9 +652,9 @@ uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
 
 [[NaNMath]]
-git-tree-sha1 = "737a5957f387b17e74d4ad2f440eb330b39a62c5"
+git-tree-sha1 = "b086b7ea07f8e38cf122f5016af580881ac914fe"
 uuid = "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3"
-version = "1.0.0"
+version = "0.3.7"
 
 [[NetworkOptions]]
 uuid = "ca575930-c2e3-43a9-ace4-1e988b2c1908"
@@ -770,9 +700,9 @@ version = "8.44.0+0"
 
 [[Parsers]]
 deps = ["Dates"]
-git-tree-sha1 = "1285416549ccfcdf0c50d4997a94331e88d68413"
+git-tree-sha1 = "621f4f3b4977325b9128d5fae7a8b4829a0c2222"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "2.3.1"
+version = "2.2.4"
 
 [[Pixman_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -798,9 +728,9 @@ version = "1.2.0"
 
 [[Plots]]
 deps = ["Base64", "Contour", "Dates", "Downloads", "FFMPEG", "FixedPointNumbers", "GR", "GeometryBasics", "JSON", "Latexify", "LinearAlgebra", "Measures", "NaNMath", "Pkg", "PlotThemes", "PlotUtils", "Printf", "REPL", "Random", "RecipesBase", "RecipesPipeline", "Reexport", "Requires", "Scratch", "Showoff", "SparseArrays", "Statistics", "StatsBase", "UUIDs", "UnicodeFun", "Unzip"]
-git-tree-sha1 = "6f2dd1cf7a4bbf4f305a0d8750e351cb46dfbe80"
+git-tree-sha1 = "88ee01b02fba3c771ac4dce0dfc4ecf0cb6fb772"
 uuid = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-version = "1.27.6"
+version = "1.27.5"
 
 [[PlutoUI]]
 deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "Markdown", "Random", "Reexport", "UUIDs"]
@@ -810,9 +740,9 @@ version = "0.7.38"
 
 [[Preferences]]
 deps = ["TOML"]
-git-tree-sha1 = "47e5f437cc0e7ef2ce8406ce1e7e24d44915f88d"
+git-tree-sha1 = "d3538e7f8a790dc8903519090857ef8e1283eecd"
 uuid = "21216c6a-2e73-6563-6e65-726566657250"
-version = "1.3.0"
+version = "1.2.5"
 
 [[Printf]]
 deps = ["Unicode"]
@@ -903,9 +833,9 @@ version = "2.1.4"
 
 [[StaticArrays]]
 deps = ["LinearAlgebra", "Random", "Statistics"]
-git-tree-sha1 = "cd56bf18ed715e8b09f06ef8c6b781e6cdc49911"
+git-tree-sha1 = "4f6ec5d99a28e1a749559ef7dd518663c5eca3d5"
 uuid = "90137ffa-7385-5640-81b9-e52037218182"
-version = "1.4.4"
+version = "1.4.3"
 
 [[Statistics]]
 deps = ["LinearAlgebra", "SparseArrays"]
@@ -913,9 +843,9 @@ uuid = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [[StatsAPI]]
 deps = ["LinearAlgebra"]
-git-tree-sha1 = "c82aaa13b44ea00134f8c9c89819477bd3986ecd"
+git-tree-sha1 = "8d7530a38dbd2c397be7ddd01a424e4f411dcc41"
 uuid = "82ae8749-77ed-4fe6-ae5f-f523153014b0"
-version = "1.3.0"
+version = "1.2.2"
 
 [[StatsBase]]
 deps = ["DataAPI", "DataStructures", "LinearAlgebra", "LogExpFunctions", "Missings", "Printf", "Random", "SortingAlgorithms", "SparseArrays", "Statistics", "StatsAPI"]
@@ -1188,16 +1118,13 @@ version = "0.9.1+5"
 """
 
 # ╔═╡ Cell order:
-# ╟─ff9e1333-50af-41e0-bddf-5345a9ab0f8e
-# ╟─235b7b72-be37-11ec-12ad-61ef34461d2a
-# ╠═137a6867-baae-4a83-8987-379918679be0
+# ╠═ff9e1333-50af-41e0-bddf-5345a9ab0f8e
+# ╠═235b7b72-be37-11ec-12ad-61ef34461d2a
 # ╠═7b8f7bd7-6da2-4c15-80b8-2bda5edf0b1a
+# ╠═fd23790c-dffe-428d-b8bd-34097b71167a
 # ╟─7eabcc9b-9620-4452-917d-e9e2c6e7d636
-# ╟─43128ca4-0d92-43e0-8f65-4911aa127aed
-# ╟─786e0278-9e19-4060-8b66-2e1e676b44ac
+# ╠═786e0278-9e19-4060-8b66-2e1e676b44ac
+# ╟─1b5e7e64-f158-424e-8e06-107a56cd1cc2
 # ╠═491dc4ed-6e61-40e6-a839-7f72baefef7a
-# ╠═ade0385b-b237-47d5-86c1-d4653b537a36
-# ╟─10f8facf-fe69-4892-8428-1a6e2d61c2ce
-# ╠═526681fb-3e44-40d7-994d-53061be6939f
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
