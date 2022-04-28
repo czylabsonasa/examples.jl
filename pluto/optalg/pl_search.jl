@@ -21,6 +21,7 @@ begin
 	using LinearAlgebra, ForwardDiff
 	import Contour: contours, levels, level, lines, coordinates
 	using PlutoUI
+	using HypertextLiteral
 
 html"""
 <style>
@@ -41,13 +42,7 @@ html"""
 end
 
 # ╔═╡ ff9e1333-50af-41e0-bddf-5345a9ab0f8e
-md"""## >>> continous 2d-search <<<"""
-
-# ╔═╡ 137a6867-baae-4a83-8987-379918679be0
-# ╠═╡ disabled = true
-#=╠═╡
-#import Pkg; Pkg.add("Gaston")
-  ╠═╡ =#
+md"""## >>> continuous 2d-search <<<"""
 
 # ╔═╡ 7b8f7bd7-6da2-4c15-80b8-2bda5edf0b1a
 begin
@@ -69,7 +64,7 @@ begin
 		"xdom"=>(-4,4),
 		"ydom"=>(-4,4),
 		"indom"=>(x)->(-4≤x[1]≤4 && -4≤x[2]≤4),
-		"unidom"=>()->8*rand(2).-4,
+		"unidom"=>()->(8*rand()-4,8*rand()-4),
 		"string"=>"x^2 + (y/2)^2",
 	)
 	prob2=Dict(
@@ -77,7 +72,7 @@ begin
 		"xdom"=>(-4,4),
 		"ydom"=>(-4,4),
 		"indom"=>(x)->(-4≤x[1]≤4 && -4≤x[2]≤4),
-		"unidom"=>()->8*rand(2).-4,
+		"unidom"=>()->(8*rand()-4,8*rand()-4),
 		"string"=>raw"x^4 + y^4 -13x^2 - 13y^2",
 	)
 	
@@ -94,8 +89,9 @@ end
 begin
 	function blind(config)
 		problem=config.problem
-		INC=config.INC
+		DEC=config.DEC
 		EV=config.EV
+		VAIN=config.VAIN
 		x=config.x0
 		
 		f(x)=problem["f"](x[1],x[2])
@@ -104,18 +100,22 @@ begin
 		loc=[x]
 		val=[fx]
 
-		inc=0
+		vain=0
+		dec=0
 		ev=0
-		while inc≤INC && ev≤EV
+		while dec≤DEC && ev≤EV && vain<VAIN
 			y=unidom()
 			fy=f(y); ev+=1
-			if fy<fx
+			if fy<=fx
 				x=y; fx=fy
 				push!(loc,x); push!(val,fx)
-				inc+=1
+				dec+=1
+				vain=0
+			else
+				vain+=1
 			end
 		end
-		loc,val,inc,ev
+		(loc=loc,val=val,dec=dec,ev=ev)
 	end
 	md"""### <blind-search>"""
 end
@@ -125,15 +125,16 @@ end
 PlutoUI.combine() do bind
 md"""
 * problem $(bind(Select(problemlist)))
-* INCsteps $(bind(Slider(10:10:1000,show_value=true)))
-* funEVals $(bind(Slider(1000:1000:100000,show_value=true)))
+* DECsteps $(bind(Slider(10:10:100,show_value=true)))
+* funEVals $(bind(Slider(1000:1000:10000,show_value=true)))
+* VAIN $(bind(Slider(100:100:1000,show_value=true)))
 """
 end
 )
 
 # ╔═╡ 491dc4ed-6e61-40e6-a839-7f72baefef7a
 begin
-	problem,INC,EV=blindconfig
+	problem,DEC,EV,VAIN=blindconfig
 	xx=range(problem["xdom"][1],problem["xdom"][2],length=100)
 	yy=range(problem["ydom"][1],problem["ydom"][2],length=100)
 
@@ -144,18 +145,19 @@ begin
 	config=(
 		problem=problem,
 		x0=problem["unidom"](),
-		INC=INC,EV=EV,
-		neigh=x->x .+ randn(2),
+		DEC=DEC,EV=EV,VAIN=VAIN,
+		neigh=x->(x[1] + randn(),x[2] + randn())
 	)
 	
-	loc,val,inc,ev=blind(config)
+	ret=blind(config)
+	loc=ret.loc;val=ret.val;dec=ret.dec;ev=ret.ev
 	locx,locy=tup2vec(loc)
 
 	title1="\$"*problem["string"]*"\$"
 	p1=contour(xx,yy,zz,title=title1)
 	plot!(locx,locy,label="",markersize=10,color=:black)
 	
-	title2="$(inc)/$(ev)=$(mr(inc/ev))->$(mr(val[end]))"
+	title2="$(dec)/$(ev)=$(mr(dec/ev))   $(mr(val[end]))"
 	p2=plot(1:length(val),val,legend=false,title=title2)
 	plot(p1,p2,layout=grid(2,1,heights=[0.7,0.3]))
 end
@@ -165,8 +167,9 @@ end
 begin
 	function hillclimbing(config)
 		problem=config.problem
-		INC=config.INC
+		DEC=config.DEC
 		EV=config.EV
+		VAIN=config.VAIN
 		x=config.x0
 		neigh=config.neigh
 		
@@ -177,23 +180,27 @@ begin
 		loc=[x]
 		val=[fx]
 
-		inc=0
+		vain=0
+		dec=0
 		ev=0
-		while inc≤INC && ev≤EV
+		while dec≤DEC && ev≤EV && vain<VAIN
 			y=neigh(x)
 			(false==indom(y))&&continue
 			ev+=1
 			fy=f(y)
-			if fy<fx
+			if fy<=fx
 				x=y; fx=fy
 				push!(loc,x); push!(val,fx)
-				inc+=1
+				dec+=1
+				vain=0
+			else
+				vain+=1
 			end
 		end
-		loc,val,inc,ev
+		(loc=loc,val=val,dec=dec,ev=ev)
 	end
 
-	md"""### <hill-climbing>"""
+	md"""### <hill-climbing-vanilla>"""
 end
 
 # ╔═╡ 10f8facf-fe69-4892-8428-1a6e2d61c2ce
@@ -201,15 +208,16 @@ end
 PlutoUI.combine() do bind
 md"""
 * problem $(bind(Select(problemlist)))
-* INCsteps $(bind(Slider(10:10:1000,show_value=true)))
-* funEVals $(bind(Slider(1000:1000:100000,show_value=true)))
+* DECsteps $(bind(Slider(10:10:100,show_value=true)))
+* funEVals $(bind(Slider(1000:1000:10000,show_value=true)))
+* VAIN $(bind(Slider(100:100:1000,show_value=true)))
 """
 end
 )
 
 # ╔═╡ 526681fb-3e44-40d7-994d-53061be6939f
 let
-	problem,INC,EV=hillconfig
+	problem,DEC,EV,VAIN=hillconfig
 	xx=range(problem["xdom"][1],problem["xdom"][2],length=100)
 	yy=range(problem["ydom"][1],problem["ydom"][2],length=100)
 
@@ -220,17 +228,126 @@ let
 	config=(
 		problem=problem,
 		x0=problem["unidom"](),
-		INC=INC,EV=EV,
-		neigh=x->x .+ randn(2),
+		DEC=DEC,EV=EV,VAIN=VAIN,
+		neigh=x->(x[1] + randn(),x[2] + randn())
 	)
 	
-	loc,val,inc,ev=hillclimbing(config)
+	ret=hillclimbing(config)
+	loc=ret.loc;val=ret.val;dec=ret.dec;ev=ret.ev
 	locx,locy=tup2vec(loc)
 	title1="\$"*problem["string"]*"\$"
 	p1=contour(xx,yy,zz,title=title1)
 	plot!(locx,locy,label="",markersize=10,color=:black)
 	
-	title2="$(inc)/$(ev)=$(mr(inc/ev))->$(mr(val[end]))"
+	title2="$(dec)/$(ev)=$(mr(dec/ev))  $(mr(val[end]))"
+	p2=plot(1:length(val),val,legend=false,title=title2)
+	plot(p1,p2,layout=grid(2,1,heights=[0.7,0.3]))
+end
+
+
+# ╔═╡ 9a877fe8-ed66-48d5-a8f6-e4cbad7e8bd9
+begin
+	function sann(config)
+		problem=config.problem
+		EV=config.EV
+		VAIN=config.VAIN
+		x=config.x0
+		neigh=config.neigh
+		T=config.T0
+		Tω=config.Tω
+		N=config.N
+		β=config.β
+		
+		f(x)=problem["f"](x[1],x[2])
+		indom=problem["indom"]
+
+		fx=f(x)
+		loc=[x]
+
+		val=[fx]
+
+		bestfx=fx
+		bestx=x
+	
+		vain=0
+		dec=0
+		ev=0
+		while T>Tω && ev<EV && vain<VAIN
+			locx=x
+			locfx=fx
+			for k in 1:N
+				y=neigh(x)
+				(false==indom(y))&&continue
+				ev+=1
+				fy=f(y)
+				Δ=fy-fx
+				if Δ<0
+					x=y; fx=fy
+					if fx<locfx
+						locfx=fx
+						locx=x
+					end
+				elseif rand()<exp(-Δ/T)
+					x=y; fx=fy
+				end
+			end
+			if locfx<bestfx
+				vain=0
+				dec+=1
+				bestx=locx
+				bestfx=locfx
+			else
+				vain+=1
+			end
+			push!(loc,bestx)
+			push!(val,bestfx)
+			T=β*T
+		end # T
+		(loc=loc,val=val,dec=dec,ev=ev)
+	end
+	md"""### <simulated annealing-vanilla>"""
+end
+
+# ╔═╡ b03fc2f3-82bf-41ed-8b78-4e4291fc72c8
+@bind sannconfig confirm(
+PlutoUI.combine() do bind
+md"""
+* problem $(bind(Select(problemlist)))
+* T0 $(bind(Slider(10:100:1000,show_value=true)))
+* Tω $(bind(Slider(0.1:0.1:10,show_value=true)))
+* N $(bind(Slider(10:10:1000,show_value=true)))
+* β $(bind(Slider(0.7:0.001:0.999,show_value=true)))
+* funEVals $(bind(Slider(10000:10000:100000,show_value=true)))
+* VAIN $(bind(Slider(10:100:1000,show_value=true)))
+"""
+end
+)
+
+# ╔═╡ d32808a7-2c5b-40f0-8532-56aa9d6fa83a
+let
+	problem,T0,Tω,N,β,EV,VAIN=sannconfig
+	xx=range(problem["xdom"][1],problem["xdom"][2],length=100)
+	yy=range(problem["ydom"][1],problem["ydom"][2],length=100)
+
+	f(x)=problem["f"](x[1],x[2])
+	f(x,y)=f((x,y))
+	zz=[f(x,y) for x in xx, y in yy]
+
+	config=(
+		problem=problem,
+		x0=problem["unidom"](),
+		T0=T0,Tω=Tω,N=N,β=β,EV=EV,VAIN=VAIN,
+		neigh=x->(x[1] + randn(),x[2] + randn())
+	)
+	
+	ret=sann(config)
+	loc=ret.loc;val=ret.val;dec=ret.dec;ev=ret.ev
+	locx,locy=tup2vec(loc)
+	title1="\$"*problem["string"]*"\$"
+	p1=contour(xx,yy,zz,title=title1)
+	plot!(locx,locy,label="",markersize=10,color=:black)
+	
+	title2="$(dec)/$(ev)=$(mr(dec/ev))  $(mr(val[end]))"
 	p2=plot(1:length(val),val,legend=false,title=title2)
 	plot(p1,p2,layout=grid(2,1,heights=[0.7,0.3]))
 end
@@ -241,6 +358,7 @@ PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 Contour = "d38c429a-6771-53c6-b99e-75d170b6e991"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+HypertextLiteral = "ac1192a8-f4b3-4bfe-ba22-af5b92cd3ab2"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
@@ -248,6 +366,7 @@ PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 [compat]
 Contour = "~0.5.7"
 ForwardDiff = "~0.10.27"
+HypertextLiteral = "~0.9.3"
 Plots = "~1.27.6"
 PlutoUI = "~0.7.38"
 """
@@ -1190,14 +1309,16 @@ version = "0.9.1+5"
 # ╔═╡ Cell order:
 # ╟─ff9e1333-50af-41e0-bddf-5345a9ab0f8e
 # ╟─235b7b72-be37-11ec-12ad-61ef34461d2a
-# ╠═137a6867-baae-4a83-8987-379918679be0
 # ╠═7b8f7bd7-6da2-4c15-80b8-2bda5edf0b1a
-# ╟─7eabcc9b-9620-4452-917d-e9e2c6e7d636
-# ╟─43128ca4-0d92-43e0-8f65-4911aa127aed
+# ╠═7eabcc9b-9620-4452-917d-e9e2c6e7d636
+# ╠═43128ca4-0d92-43e0-8f65-4911aa127aed
 # ╟─786e0278-9e19-4060-8b66-2e1e676b44ac
 # ╠═491dc4ed-6e61-40e6-a839-7f72baefef7a
 # ╠═ade0385b-b237-47d5-86c1-d4653b537a36
 # ╟─10f8facf-fe69-4892-8428-1a6e2d61c2ce
-# ╠═526681fb-3e44-40d7-994d-53061be6939f
+# ╟─526681fb-3e44-40d7-994d-53061be6939f
+# ╠═9a877fe8-ed66-48d5-a8f6-e4cbad7e8bd9
+# ╟─b03fc2f3-82bf-41ed-8b78-4e4291fc72c8
+# ╠═d32808a7-2c5b-40f0-8532-56aa9d6fa83a
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
