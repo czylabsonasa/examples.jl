@@ -7,8 +7,8 @@
 # https://docs.julialang.org/en/v1/manual/methods/#Function-like-objects-1
 
 function trav(ex, ind="")
-  println("$(ind)$(elem) $(typeof(elem))")
-  if isa(ex, Expr)
+  if (ex isa Expr)
+    println("$(ind)$(ex.args)")  
     for arg in ex.args
       trav(arg,ind*"  ")
     end
